@@ -52,6 +52,26 @@ func CreateLottery(c tb.Context) error {
 	if len(CreateEvent.Prizes) == 0 {
 		c.Reply(i18nGetString("Create_noprizeset", lang))
 		return nil
+	} else {
+		var prizes []PrizeType
+		err := json.Unmarshal([]byte(CreateEvent.Prizes), &prizes)
+		if err != nil {
+			return c.Reply(i18nGetString("Create_noprizeset", lang))
+		}
+		for _, prize := range prizes {
+			method := prize.ClaimRewardMethod
+			switch {
+			case method == "group":
+			case isValidUsername(method):
+			case method == "direct":
+				if len(prize.Directclaim) < prize.Amount {
+					return c.Reply(i18nGetString("Create_NotEnoughPrize", lang))
+				}
+
+			default:
+				return c.Reply(i18nGetString("Create_NoClaimMethodSet", lang))
+			}
+		}
 	}
 
 	EventID := UUIDShort()

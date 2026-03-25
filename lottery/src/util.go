@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"regexp"
 	"strings"
 )
 
@@ -48,4 +49,9 @@ func EscapeMarkdownV2(text string) string {
 		text = strings.ReplaceAll(text, string(ch), "\\"+string(ch))
 	}
 	return text
+}
+
+func isValidUsername(username string) bool {
+	matched, _ := regexp.MatchString(`^@[a-zA-Z][a-zA-Z0-9_]*$`, username)
+	return matched
 }

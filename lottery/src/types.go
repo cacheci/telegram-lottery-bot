@@ -54,10 +54,12 @@ type LotteryEventType struct {
 
 // PrizeType 奖品信息类型
 type PrizeType struct {
-	Name         string `json:"name"`
-	Amount       int    `json:"amount"`
-	IsNameHidden bool   `json:"isnamehidden"`
-	HiddenCap    string `json:"hiddencap"`
+	Name              string   `json:"name"`
+	Amount            int      `json:"amount"`
+	IsNameHidden      bool     `json:"isnamehidden"`
+	HiddenCap         string   `json:"hiddencap"`
+	ClaimRewardMethod string   `json:"claimRewardMethod"`
+	Directclaim       []string `json:"directclaim"`
 }
 
 // CreateEventType 创建抽奖类型
