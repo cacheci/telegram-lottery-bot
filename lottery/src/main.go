@@ -26,7 +26,6 @@ func readConfig() {
 	if err != nil {
 		log.Fatalf("Unmarshal: %v", err)
 	}
-	log.Println("配置文件内容:", conf)
 }
 
 // 创建机器人进程
