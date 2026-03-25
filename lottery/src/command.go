@@ -78,18 +78,20 @@ func CreateLottery(c tb.Context) error {
 
 	// 加入数据库
 	lottery := LotteryEventType{
-		EventID:            EventID,
-		LotteryDescription: CreateEvent.LotteryDescription,
-		Prizes:             CreateEvent.Prizes,
-		InChannelRequired:  CreateEvent.InChannelRequired,
-		InGroupRequired:    CreateEvent.InGroupRequired,
-		Created:            time.Now().Unix(),
-		DeadlineEnabled:    CreateEvent.DeadlineEnabled,
-		DrawDeadline:       CreateEvent.DrawDeadline,
-		MemberCountEnabled: CreateEvent.MemberCountEnabled,
-		DrawMemberCount:    CreateEvent.DrawMemberCount,
-		Usercount:          0,
-		Completed:          0,
+		EventID:               EventID,
+		LotteryDescription:    CreateEvent.LotteryDescription,
+		Prizes:                CreateEvent.Prizes,
+		InChannelRequired:     CreateEvent.InChannelRequired,
+		InChannelRequiredLink: CreateEvent.InChannelRequiredLink,
+		InGroupRequired:       CreateEvent.InGroupRequired,
+		InGroupRequiredLink:   CreateEvent.InGroupRequiredLink,
+		Created:               time.Now().Unix(),
+		DeadlineEnabled:       CreateEvent.DeadlineEnabled,
+		DrawDeadline:          CreateEvent.DrawDeadline,
+		MemberCountEnabled:    CreateEvent.MemberCountEnabled,
+		DrawMemberCount:       CreateEvent.DrawMemberCount,
+		Usercount:             0,
+		Completed:             0,
 		Owner: UserinfoType{
 			ID:          c.Sender().ID,
 			Displayname: (c.Sender().FirstName + " " + c.Sender().LastName),
@@ -103,7 +105,18 @@ func CreateLottery(c tb.Context) error {
 	}
 	message := fmt.Sprintf(i18nGetString("Create_success", lang), EscapeMarkdownV2(EventID))
 
-	c.Reply(message, markdownOption)
+	btnGenerateText := tb.InlineButton{
+		Unique: "genText",
+		Data:   EventID,
+		Text:   i18nGetString("Btn_GenInfo", lang),
+	}
+	markup := &tb.ReplyMarkup{
+		InlineKeyboard: [][]tb.InlineButton{
+			{btnGenerateText},
+		},
+	}
+
+	c.Reply(message, markdownOption, markup)
 
 	return nil
 }
@@ -159,13 +172,13 @@ func QueryLottery(c tb.Context) error {
 	if err != nil {
 		c.Reply(i18nGetString("Query_searcherror", lang))
 	} else {
+		// 奖品
 		Rewards := ""
 		var prizeList []PrizeType
 		if len(event.Prizes) > 0 {
 			err := json.Unmarshal(event.Prizes, &prizeList)
 			if err != nil {
-				fmt.Println(i18nGetString("Query_getprizeerror", lang), err)
-				return nil
+				return c.Reply(i18nGetString("Query_getprizeerror", lang))
 			} else {
 				for _, p := range prizeList {
 					HiddenRewards := "\n"
@@ -176,6 +189,8 @@ func QueryLottery(c tb.Context) error {
 				}
 			}
 		}
+
+		//开奖方式
 		DrawMethod := ""
 		if event.MemberCountEnabled {
 			DrawMethod += fmt.Sprintf(i18nGetString("Query_DrawWhenMemberCount", lang), EscapeMarkdownV2(strconv.FormatInt(event.DrawMemberCount, 10)))
@@ -273,7 +288,139 @@ func DeleteLottery(c tb.Context) error {
 	return c.Reply(fmt.Sprintf(i18nGetString("Delete_Success", lang), values[1]))
 }
 
+// GetUserID 获取自己的信息
 func GetUserID(c tb.Context) error {
 	lang := c.Sender().LanguageCode
-	return c.Reply(fmt.Sprintf(i18nGetString("GetUserID", lang), c.Sender().ID, lang))
+	return c.Reply(fmt.Sprintf(i18nGetString("GetUserID", lang), strconv.FormatInt(c.Sender().ID, 10), lang))
+}
+
+func ProcessCallback(c tb.Context) error {
+	lang := c.Sender().LanguageCode
+
+	cb := c.Callback()
+	if cb == nil {
+		return nil
+	}
+
+	btnDataSplitN := strings.SplitN(strings.TrimSpace(cb.Data), "|", 2)
+	if len(btnDataSplitN) != 2 {
+		return c.Bot().Respond(cb, &tb.CallbackResponse{
+			Text: "Invalid button format",
+		})
+	}
+
+	btnType := btnDataSplitN[0]
+	btnData := btnDataSplitN[1]
+
+	switch {
+	case btnType == "genText":
+		GenerateText(c, btnData)
+		return c.Bot().Respond(cb, &tb.CallbackResponse{
+			Text: i18nGetString("Btn_GenInfo", lang),
+		})
+	case btnType == "claim":
+		Claim(c, btnData)
+		return c.Bot().Respond(cb, &tb.CallbackResponse{
+			Text: i18nGetString("Btn_Claim", lang),
+		})
+
+	default:
+		return c.Send("test")
+	}
+}
+
+// Participate 参加抽奖
+func Participate(bot *tb.Bot, cb *tb.Callback, text string) error {
+	//lang := c.Sender().LanguageCode
+	return nil
+}
+
+func Claim(c tb.Context, btnData string) error {
+	//lang := c.Sender().LanguageCode
+	return nil
+}
+
+func GenerateText(c tb.Context, btnData string) error {
+	lang := c.Sender().LanguageCode
+	event, _ := getLotteryInfo(btnData)
+
+	// 奖品、领奖方式
+	Rewards := "\n"
+	ClaimMethod := ""
+	var prizeList []PrizeType
+	if len(event.Prizes) > 0 {
+		err := json.Unmarshal(event.Prizes, &prizeList)
+		if err != nil {
+			return c.Reply(i18nGetString("Query_getprizeerror", lang))
+		} else {
+			for _, p := range prizeList {
+				if p.IsNameHidden {
+					Rewards += fmt.Sprintf(i18nGetString("Lottery_PrizeString", lang), EscapeMarkdownV2(strconv.FormatInt(int64(p.Amount), 10)), EscapeMarkdownV2(p.HiddenCap))
+					ClaimMethod += "\n \\- _" + EscapeMarkdownV2(p.HiddenCap)
+				} else {
+					Rewards += fmt.Sprintf(i18nGetString("Lottery_PrizeString", lang), EscapeMarkdownV2(strconv.FormatInt(int64(p.Amount), 10)), EscapeMarkdownV2(p.Name))
+					ClaimMethod += "\n \\- _" + EscapeMarkdownV2(p.Name)
+				}
+				method := p.ClaimRewardMethod
+				switch {
+				case method == "group":
+					ClaimMethod += i18nGetString("Lottery_ClaimInGroup", lang)
+				case isValidUsername(method):
+					ClaimMethod += fmt.Sprintf(i18nGetString("Lottery_ClaimWithUsername", lang), method)
+				case method == "direct":
+					ClaimMethod += i18nGetString("Lottery_ClaimInBot", lang)
+				}
+			}
+		}
+	}
+
+	//参与条件
+	condition_participate := ""
+	if event.InChannelRequired != 0 {
+		condition_participate += fmt.Sprintf(i18nGetString("Lottery_CondiParitChan", lang), event.InChannelRequiredLink)
+	}
+	if event.InGroupRequired != 0 {
+		condition_participate += fmt.Sprintf(i18nGetString("Lottery_CondiParitGrp", lang), event.InGroupRequiredLink)
+	}
+	if condition_participate == "" {
+		condition_participate = i18nGetString("Lottery_CondiParitNil", lang)
+	}
+
+	// 开奖方式
+	DrawMethod := ""
+	if event.MemberCountEnabled {
+		DrawMethod += fmt.Sprintf(i18nGetString("Query_DrawWhenMemberCount", lang), EscapeMarkdownV2(strconv.FormatInt(event.DrawMemberCount, 10)))
+	}
+	if event.DeadlineEnabled {
+		DrawMethod += fmt.Sprintf(i18nGetString("Query_DrawWhenDeadline", lang), EscapeMarkdownV2(time.Unix(event.DrawDeadline, 0).In(loc).Format("2006-01-02 15:04")))
+	}
+	if DrawMethod == "" {
+		DrawMethod = i18nGetString("Query_DrawManually", lang)
+	}
+
+	//lottery := fmt.Sprintf(i18nGetString("a", lang), event.LotteryDescription)
+	lottery := fmt.Sprintf(i18nGetString("Lottery_String", lang), EscapeMarkdownV2(event.LotteryDescription), condition_participate, Rewards, DrawMethod, ClaimMethod)
+
+	btnParticipate := tb.InlineButton{
+		Unique: "genText",
+		URL:    fmt.Sprintf("https://t.me/%s?start=%s", bot.Me.Username, ("Parti" + event.EventID)),
+		Text:   i18nGetString("Btn_Participate", lang),
+	}
+	markup := &tb.ReplyMarkup{
+		InlineKeyboard: [][]tb.InlineButton{
+			{btnParticipate},
+		},
+	}
+
+	return c.Reply(lottery, markdownOption, markup)
+}
+
+func GenerateTextCMD(c tb.Context) error {
+	lang := c.Sender().LanguageCode
+	values := strings.SplitN(c.Text(), " ", 2)
+	if len(values) != 2 {
+		c.Reply(i18nGetString("Query_contenterror", lang), markdownOption)
+		return nil
+	}
+	return GenerateText(c, values[1])
 }

@@ -88,12 +88,14 @@ func main() {
 	bot.Handle("/about", About)
 	bot.Handle("/id", GetUserID)
 	//	bot.Handle("/joined", JoinedQuery)
-	bot.Handle("/create", CreateLottery) //adminonly
-	bot.Handle("/query", QueryLottery)   //adminonly
-	bot.Handle("/list", ListLottery)     //adminonly
+	bot.Handle("/create", CreateLottery)    //adminonly
+	bot.Handle("/gentext", GenerateTextCMD) //adminonly
+	bot.Handle("/query", QueryLottery)      //adminonly
+	bot.Handle("/list", ListLottery)        //adminonly
 	//	bot.Handle("/draw", DrawLottery)     //adminonly
 	bot.Handle("/delete", DeleteLottery) //adminonly
 	//	bot.Handle("/lucky_list", LuckyList) //adminonly
+	bot.Handle(tb.OnCallback, ProcessCallback)
 
 	log.Println("bot 启动成功!")
 

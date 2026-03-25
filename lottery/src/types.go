@@ -33,23 +33,25 @@ type BotConfig struct {
 
 // LotteryEventType 抽奖活动类型
 type LotteryEventType struct {
-	ID                 uint `gorm:"primaryKey"`
-	EventID            string
-	Owner              UserinfoType `gorm:"foreignKey:OwnerFKID;references:ID"`
-	OwnerFKID          int64
-	LotteryDescription string
-	Prizes             datatypes.JSON
-	InGroupRequired    int64
-	InChannelRequired  int64
-	Created            int64
-	DeadlineEnabled    bool
-	DrawDeadline       int64
-	MemberCountEnabled bool
-	DrawMemberCount    int64
-	Usercount          int64
-	Completed          int64
-	isCompleted        bool
-	LuckyUsers         []UserinfoType `gorm:"many2many:lottery_event_lucky_users"`
+	ID                    uint `gorm:"primaryKey"`
+	EventID               string
+	Owner                 UserinfoType `gorm:"foreignKey:OwnerFKID;references:ID"`
+	OwnerFKID             int64
+	LotteryDescription    string
+	Prizes                datatypes.JSON
+	InGroupRequired       int64
+	InGroupRequiredLink   string
+	InChannelRequired     int64
+	InChannelRequiredLink string
+	Created               int64
+	DeadlineEnabled       bool
+	DrawDeadline          int64
+	MemberCountEnabled    bool
+	DrawMemberCount       int64
+	Usercount             int64
+	Completed             int64
+	isCompleted           bool
+	LuckyUsers            []UserinfoType `gorm:"many2many:lottery_event_lucky_users"`
 }
 
 // PrizeType 奖品信息类型
@@ -64,14 +66,16 @@ type PrizeType struct {
 
 // CreateEventType 创建抽奖类型
 type CreateEventType struct {
-	LotteryDescription string         `json:"LotteryDescription"`
-	Prizes             datatypes.JSON `json:"prizes"`
-	InGroupRequired    int64          `json:"InGroupRequired,omitempty"`
-	InChannelRequired  int64          `json:"InChannelRequired,omitempty"`
-	DeadlineEnabled    bool           `json:"DeadlineEnabled"`
-	DrawDeadline       int64          `json:"DrawDeadline,omitempty"`
-	MemberCountEnabled bool           `json:"MemberCountEnabled"`
-	DrawMemberCount    int64          `json:"DrawMemberCount,omitempty"`
+	LotteryDescription    string         `json:"LotteryDescription"`
+	Prizes                datatypes.JSON `json:"prizes"`
+	InGroupRequired       int64          `json:"InGroupRequired,omitempty"`
+	InGroupRequiredLink   string         `json:"InGroupRequiredLink,omitempty"`
+	InChannelRequired     int64          `json:"InChannelRequired,omitempty"`
+	InChannelRequiredLink string         `json:"InChannelRequiredLink,omitempty"`
+	DeadlineEnabled       bool           `json:"DeadlineEnabled"`
+	DrawDeadline          int64          `json:"DrawDeadline,omitempty"`
+	MemberCountEnabled    bool           `json:"MemberCountEnabled"`
+	DrawMemberCount       int64          `json:"DrawMemberCount,omitempty"`
 }
 
 // UserinfoType 用户信息类型
