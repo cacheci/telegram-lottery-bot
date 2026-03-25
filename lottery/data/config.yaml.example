@@ -1,0 +1,18 @@
+http:
+  proxy: ""
+  timeout: 20
+  tbapi: https://api.telegram.org
+
+bot:
+  token: 1234567890:ABCDEFGHIJKLMNO_PQRSTUVWXYZ
+  poller: 10
+  DB: ../data/database.DB
+  tz: Asia/Shanghai
+  OSS: https://example.com
+  fallbacklang: en
+
+admin:
+  admin:
+    - 1234567890
+  superadmin:
+    - 1234567890

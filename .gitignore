@@ -1,0 +1,11 @@
+*.so
+*.dylib
+*.test
+*.out
+
+desktop.ini
+.DS_Store
+._.DS.Store
+
+database.DB
+config.yaml
