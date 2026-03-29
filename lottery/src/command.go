@@ -3,7 +3,6 @@ package main
 import (
 	"encoding/json"
 	"fmt"
-	"log"
 	"strconv"
 	"strings"
 	"time"
@@ -73,12 +72,23 @@ func CreateLottery(c tb.Context) error {
 			}
 		}
 	}
-
-	EventID := UUIDShort()
+	if CreateEvent.InChannelRequired != 0 {
+		if CreateEvent.InChannelRequiredLink == "" {
+			return c.Reply(i18nGetString("Create_NoChannelLinkProvided", lang))
+		} else if !isMemberstatReadable(c, CreateEvent.InChannelRequired) {
+			return c.Reply(i18nGetString("Create_NoChannelMemberAccess", lang))
+		}
+	}
+	if CreateEvent.InGroupRequired != 0 {
+		if CreateEvent.InGroupRequiredLink == "" {
+			return c.Reply(i18nGetString("Create_NoGroupLinkProvided", lang))
+		} else if !isMemberstatReadable(c, CreateEvent.InGroupRequired) {
+			return c.Reply(i18nGetString("Create_NoGroupMemberAccess", lang))
+		}
+	}
 
 	// 加入数据库
 	lottery := LotteryEventType{
-		EventID:               EventID,
 		LotteryDescription:    CreateEvent.LotteryDescription,
 		Prizes:                CreateEvent.Prizes,
 		InChannelRequired:     CreateEvent.InChannelRequired,
@@ -94,15 +104,18 @@ func CreateLottery(c tb.Context) error {
 		Completed:             0,
 		Owner: UserinfoType{
 			ID:          c.Sender().ID,
-			Displayname: (c.Sender().FirstName + " " + c.Sender().LastName),
+			Displayname: SafetyDisplaynameInput(c.Sender().FirstName + " " + c.Sender().LastName),
 			Username:    c.Sender().Username,
 		},
 		LuckyUsers: []UserinfoType{},
 	}
 
-	if err := DB.Create(&lottery).Error; err != nil {
-		log.Fatal(err)
+	err = createEvent(&lottery)
+	if err != nil {
+		return c.Reply(i18nGetString("Create_fail", lang))
 	}
+
+	EventID := lottery.EventID()
 	message := fmt.Sprintf(i18nGetString("Create_success", lang), EscapeMarkdownV2(EventID))
 
 	btnGenerateText := tb.InlineButton{
@@ -146,7 +159,27 @@ func About(c tb.Context) error {
 	}
 
 	return c.Reply(fmt.Sprintf(i18nGetString("About", lang), conf.Bot.OSS))
+}
 
+func Start(c tb.Context) error {
+	payload := c.Message().Payload
+	if payload == "" {
+		return About(c)
+	} else {
+		workload := payload[:3]
+		switch {
+		case workload == "Par":
+			user := UserinfoType{
+				Username:    c.Sender().Username,
+				ID:          c.Sender().ID,
+				Displayname: SafetyDisplaynameInput(c.Sender().FirstName + " " + c.Sender().LastName),
+			}
+			return JoinEvent(c, user, payload[4:])
+
+		default:
+			return nil
+		}
+	}
 }
 
 // QueryLottery 查询抽奖信息
@@ -203,7 +236,7 @@ func QueryLottery(c tb.Context) error {
 		}
 
 		message := fmt.Sprintf(i18nGetString("Query_Eventinfo", lang),
-			EscapeMarkdownV2(event.EventID),
+			EscapeMarkdownV2(event.EventID()),
 			EscapeMarkdownV2(event.LotteryDescription),
 			EscapeMarkdownV2(event.Owner.Displayname),
 			EscapeMarkdownV2(strconv.FormatInt(event.Owner.ID, 10)),
@@ -238,12 +271,12 @@ func ListLottery(c tb.Context) error {
 			for _, e := range events {
 				if len(message) < 3000 {
 					message += fmt.Sprintf(i18nGetString("List_MessageBody", lang),
-						EscapeMarkdownV2(e.EventID), EscapeMarkdownV2(e.LotteryDescription), EscapeMarkdownV2(e.Owner.Displayname), EscapeMarkdownV2(strconv.FormatInt(e.Owner.ID, 10)),
+						EscapeMarkdownV2(e.EventID()), EscapeMarkdownV2(e.LotteryDescription), EscapeMarkdownV2(e.Owner.Displayname), EscapeMarkdownV2(strconv.FormatInt(e.Owner.ID, 10)),
 						EscapeMarkdownV2(e.Owner.Username), EscapeMarkdownV2(strconv.FormatInt(e.Usercount, 10)), map[bool]string{true: i18nGetString("True", lang), false: i18nGetString("False", lang)}[e.isCompleted])
 				} else {
 					c.Reply(message, markdownOption)
 					message = fmt.Sprintf(i18nGetString("List_MessageBodyWithHead", lang),
-						EscapeMarkdownV2(e.EventID), EscapeMarkdownV2(e.LotteryDescription), EscapeMarkdownV2(e.Owner.Displayname), EscapeMarkdownV2(strconv.FormatInt(e.Owner.ID, 10)),
+						EscapeMarkdownV2(e.EventID()), EscapeMarkdownV2(e.LotteryDescription), EscapeMarkdownV2(e.Owner.Displayname), EscapeMarkdownV2(strconv.FormatInt(e.Owner.ID, 10)),
 						EscapeMarkdownV2(e.Owner.Username), EscapeMarkdownV2(strconv.FormatInt(e.Usercount, 10)), map[bool]string{true: i18nGetString("True", lang), false: i18nGetString("False", lang)}[e.isCompleted])
 				}
 			}
@@ -319,7 +352,7 @@ func ProcessCallback(c tb.Context) error {
 			Text: i18nGetString("Btn_GenInfo", lang),
 		})
 	case btnType == "claim":
-		Claim(c, btnData)
+		//Claim(c, btnData)
 		return c.Bot().Respond(cb, &tb.CallbackResponse{
 			Text: i18nGetString("Btn_Claim", lang),
 		})
@@ -329,20 +362,12 @@ func ProcessCallback(c tb.Context) error {
 	}
 }
 
-// Participate 参加抽奖
-func Participate(bot *tb.Bot, cb *tb.Callback, text string) error {
-	//lang := c.Sender().LanguageCode
-	return nil
-}
-
-func Claim(c tb.Context, btnData string) error {
-	//lang := c.Sender().LanguageCode
-	return nil
-}
-
 func GenerateText(c tb.Context, btnData string) error {
 	lang := c.Sender().LanguageCode
-	event, _ := getLotteryInfo(btnData)
+	event, err := getLotteryInfo(btnData)
+	if err != nil {
+		return c.Send("Query_searcherror")
+	}
 
 	// 奖品、领奖方式
 	Rewards := "\n"
@@ -402,9 +427,8 @@ func GenerateText(c tb.Context, btnData string) error {
 	lottery := fmt.Sprintf(i18nGetString("Lottery_String", lang), EscapeMarkdownV2(event.LotteryDescription), condition_participate, Rewards, DrawMethod, ClaimMethod)
 
 	btnParticipate := tb.InlineButton{
-		Unique: "genText",
-		URL:    fmt.Sprintf("https://t.me/%s?start=%s", bot.Me.Username, ("Parti" + event.EventID)),
-		Text:   i18nGetString("Btn_Participate", lang),
+		URL:  fmt.Sprintf("https://t.me/%s?start=%s", bot.Me.Username, ("Par_" + event.EventID())),
+		Text: i18nGetString("Btn_Participate", lang),
 	}
 	markup := &tb.ReplyMarkup{
 		InlineKeyboard: [][]tb.InlineButton{

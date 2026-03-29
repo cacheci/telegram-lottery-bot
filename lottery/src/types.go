@@ -24,6 +24,7 @@ type BotConfig struct {
 		Timezone     string `yaml:"tz"`
 		OSS          string `yaml:"OSS"`
 		FallbackLang string `yaml:"fallbacklang"`
+		key          uint32 `yaml:"lotterykey"`
 	} `yaml:"bot"`
 	Admin struct {
 		Admin      []int64 `yaml:"admin"`
@@ -33,8 +34,7 @@ type BotConfig struct {
 
 // LotteryEventType 抽奖活动类型
 type LotteryEventType struct {
-	ID                    uint `gorm:"primaryKey"`
-	EventID               string
+	ID                    uint         `gorm:"primaryKey"`
 	Owner                 UserinfoType `gorm:"foreignKey:OwnerFKID;references:ID"`
 	OwnerFKID             int64
 	LotteryDescription    string
@@ -52,6 +52,7 @@ type LotteryEventType struct {
 	Completed             int64
 	isCompleted           bool
 	LuckyUsers            []UserinfoType `gorm:"many2many:lottery_event_lucky_users"`
+	// EventID            string function
 }
 
 // PrizeType 奖品信息类型
@@ -86,12 +87,12 @@ type UserinfoType struct {
 }
 
 // Participant 参与抽奖类型
-type ParticipantType struct {
-	ID       uint   `gorm:"primaryKey"`
-	EventID  string `gorm:"uniqueIndex:idx_event_user"`
-	Userid   int64  `gorm:"uniqueIndex:idx_event_user"`
-	JoinedAt int64
+type ParticipationType struct {
+	ID       uint         `gorm:"primaryKey"`
+	EventID  uint         `gorm:"uniqueIndex:idx_event_user"`
+	Userid   int64        `gorm:"uniqueIndex:idx_event_user"`
 	User     UserinfoType `gorm:"foreignKey:UserFKID;references:ID"`
+	JoinedAt int64
 	UserFKID int64
 }
 

@@ -83,7 +83,7 @@ func main() {
 	bot = createBot()
 
 	// bot.Handle(tb.OnText, ListenCreated)
-	bot.Handle("/start", About)
+	bot.Handle("/start", Start)
 	bot.Handle("/help", Help)
 	bot.Handle("/about", About)
 	bot.Handle("/id", GetUserID)
@@ -93,6 +93,7 @@ func main() {
 	bot.Handle("/query", QueryLottery)      //adminonly
 	bot.Handle("/list", ListLottery)        //adminonly
 	//	bot.Handle("/draw", DrawLottery)     //adminonly
+	//	bot.Handle("/cancel", CancelLottery)   //adminonly
 	bot.Handle("/delete", DeleteLottery) //adminonly
 	//	bot.Handle("/lucky_list", LuckyList) //adminonly
 	bot.Handle(tb.OnCallback, ProcessCallback)
